@@ -1,0 +1,50 @@
+name: x10 Clone Bioconductor packages to SWIFT buckets
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '*/5 * * * *'
+
+jobs:
+  swiftclone:
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Start k8s locally
+        id: k8s
+        uses: jupyterhub/action-k3s-helm@v1
+        with:
+          k3s-version: v1.19.10+k3s1 # releases:  https://github.com/k3s-io/k3s/tags
+        continue-on-error: true
+
+      - name: Start k8s locally
+        uses: jupyterhub/action-k3s-helm@v1
+        with:
+          k3s-version: v1.19.10+k3s1 # releases:  https://github.com/k3s-io/k3s/tags
+        if: steps.k8s.outputs.exit_code != 0
+      - name: Verify function of k8s, kubectl, and helm
+        run: |
+          kubectl version
+          helm version
+      - name: Claim list
+        id: list
+        run: |
+          sleep $(( ${{matrix.worker}}*5 )) && git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          for i in {1..5}; do bash .github/scripts/claim_list.sh ${{matrix.worker}} && git push && export DONE=1 && break || sleep 1; done && if ! [ -z "$DONE" ]; then echo "::set-output name=path::$(cat tmp${{matrix.worker}})"; else exit 1; fi
+      - name: Helm install clone jobs
+        run: echo "$CB_CREDS" > /tmp/creds && helm install data-clone ./cloner --set-file extraFileMappings."/root/\.cloudbridge".content=/tmp/creds --set-file configs."list\.txt"=lists/claimed/${{steps.list.outputs.path}}
+        env:
+          CB_CREDS: ${{secrets.CB_CREDS}}
+      - name: Get logs and events
+        run: sh -c "while true; do kubectl get events > /tmp/events && tail -n 100 /tmp/events && sleep 5 && kubectl logs $(kubectl get pods | grep -o 'data-clone-[^ ]*')  > /tmp/logs && tail -n 100 /tmp/logs && sleep 5; done;" & kubectl wait --for=condition=complete --timeout=6000s job/data-clone
+        continue-on-error: true
+      - name: Done list
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          until bash .github/scripts/mark_done.sh ${{steps.list.outputs.path}} && git push; do sleep 1 && git reset --hard origin/main; done
