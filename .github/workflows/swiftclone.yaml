@@ -44,7 +44,7 @@ jobs:
           for i in {1..5}; do bash .github/scripts/mark_running.sh ${{steps.list.outputs.path}} && git push && export RUNNING=1 && break || sleep 1; done &&\
           if ! [ -z "$RUNNING" ]; then echo "::set-output name=path::$(cat tmp${{matrix.worker}})"; else exit 1; fi &&\
           echo "$CB_CREDS" > /tmp/creds &&\
-          helm install data-clone ./cloner --set-file extraFileMappings."/root/\.cloudbridge".content=/tmp/creds --set-file configs."list\.txt"=lists/claimed/${{steps.list.outputs.path}}
+          helm install data-clone ./cloner --set-file extraFileMappings."/root/\.cloudbridge".content=/tmp/creds --set-file configs."list\.txt"=lists/running/${{steps.list.outputs.path}}
         env:
           CB_CREDS: ${{secrets.CB_CREDS}}
 
