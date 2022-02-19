@@ -23,7 +23,7 @@ jobs:
         uses: jupyterhub/action-k3s-helm@v1
         with:
           k3s-version: v1.19.10+k3s1 # releases:  https://github.com/k3s-io/k3s/tags
-        if: steps.k8s.outputs.exit_code != 0
+        if: steps.k8s.outcome=='failure'
       - name: Verify function of k8s, kubectl, and helm
         run: |
           kubectl version
