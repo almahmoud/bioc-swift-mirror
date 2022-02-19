@@ -34,10 +34,18 @@ jobs:
           sleep $(( ${{matrix.worker}}*5 )) && git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           for i in {1..5}; do bash .github/scripts/claim_list.sh ${{matrix.worker}} && git push && export DONE=1 && break || sleep 1; done && if ! [ -z "$DONE" ]; then echo "::set-output name=path::$(cat tmp${{matrix.worker}})"; else exit 1; fi
-      - name: Helm install clone jobs
-        run: echo "$CB_CREDS" > /tmp/creds && helm install data-clone ./cloner --set-file extraFileMappings."/root/\.cloudbridge".content=/tmp/creds --set-file configs."list\.txt"=lists/claimed/${{steps.list.outputs.path}}
+
+      - name: Run list with helm install clone jobs
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          for i in {1..5}; do bash .github/scripts/mark_running.sh ${{steps.list.outputs.path}} && git push && export RUNNING=1 && break || sleep 1; done &&\
+          if ! [ -z "$RUNNING" ]; then echo "::set-output name=path::$(cat tmp${{matrix.worker}})"; else exit 1; fi &&\
+          echo "$CB_CREDS" > /tmp/creds &&\
+          helm install data-clone ./cloner --set-file extraFileMappings."/root/\.cloudbridge".content=/tmp/creds --set-file configs."list\.txt"=lists/claimed/${{steps.list.outputs.path}}
         env:
           CB_CREDS: ${{secrets.CB_CREDS}}
+
       - name: Get logs and events
         run: sh -c "while true; do kubectl get events > /tmp/events && tail -n 100 /tmp/events && sleep 5 && kubectl logs $(kubectl get pods | grep -o 'data-clone-[^ ]*')  > /tmp/logs && tail -n 100 /tmp/logs && sleep 5; done;" & kubectl wait --for=condition=complete --timeout=6000s job/data-clone
         continue-on-error: true
