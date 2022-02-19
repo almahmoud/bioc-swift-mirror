@@ -1,4 +1,4 @@
-name: x10 Clone Bioconductor packages to SWIFT buckets
+name: x20 Clone Bioconductor packages to SWIFT buckets
 on:
   workflow_dispatch: {}
   schedule:
@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        worker: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        worker: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
